@@ -92,16 +92,52 @@ def register_console_commands(kernel):
         return "glass3d", None
 
     @kernel.console_command(
+        "debug",
+        help=_("Debug element tree"),
+        input_type="glass3d",
+        output_type="glass3d",
+    )
+    def glass3d_debug(command, channel, _, **kwgs):
+        """Debug command to inspect the element tree."""
+        elements = kernel.root.elements
+        channel(_("=== Element Tree Debug ==="))
+
+        # Check elem_branch directly
+        channel(_(f"elem_branch: {elements.elem_branch}"))
+        channel(_(f"elem_branch children: {len(elements.elem_branch.children)}"))
+
+        for i, child in enumerate(elements.elem_branch.children):
+            channel(_(f"  [{i}] type={child.type}, class={child.__class__.__name__}"))
+
+        # Check elems() method
+        all_elems = list(elements.elems(emphasized=False))
+        channel(_(f"elems() returned {len(all_elems)} elements"))
+        for i, e in enumerate(all_elems[:10]):  # First 10
+            channel(_(f"  [{i}] type={e.type}"))
+
+        return "glass3d", None
+
+    @kernel.console_command(
         "info",
         help=_("Show info about loaded models"),
         input_type="glass3d",
         output_type="glass3d",
     )
     def glass3d_info(command, channel, _, **kwgs):
-        # Find all PointCloud3D elements
+        # Find all PointCloud3D elements by searching elem_branch directly
+        # (can't use elems() because it filters by elem_nodes tuple which doesn't include pointcloud3d)
         elements = kernel.root.elements
-        pointclouds = list(elements.elems(emphasized=False))
-        pointclouds = [e for e in pointclouds if e.type == "elem pointcloud3d"]
+
+        def find_pointclouds(node):
+            """Recursively find all pointcloud3d elements."""
+            results = []
+            if node.type == "elem pointcloud3d":
+                results.append(node)
+            for child in node.children:
+                results.extend(find_pointclouds(child))
+            return results
+
+        pointclouds = find_pointclouds(elements.elem_branch)
 
         if not pointclouds:
             channel(_("No PointCloud3D elements loaded."))
@@ -109,8 +145,8 @@ def register_console_commands(kernel):
 
         for i, pc in enumerate(pointclouds):
             channel(_(f"PointCloud {i + 1}: {len(pc)} points"))
-            if pc.bounds:
-                min_pt, max_pt = pc.bounds
+            if pc.bounds_3d:
+                min_pt, max_pt = pc.bounds_3d
                 channel(
                     _(
                         f"  Size: {max_pt[0] - min_pt[0]:.1f} x {max_pt[1] - min_pt[1]:.1f} x {max_pt[2] - min_pt[2]:.1f} mm"

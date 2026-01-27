@@ -107,13 +107,15 @@ class PointCloudPropertyPanel(wx.Panel):
         num_layers = getattr(self.node, "num_layers", 0)
         self.layers_label.SetLabel(f"Layers: {num_layers}")
 
-        # Dimensions
-        bounds = getattr(self.node, "bounds", None)
-        if bounds is not None:
-            min_pt, max_pt = bounds
-            size = max_pt - min_pt
+        # Dimensions (use bounds_3d for 3D size in mm)
+        bounds_3d = getattr(self.node, "bounds_3d", None)
+        if bounds_3d is not None:
+            min_pt, max_pt = bounds_3d
+            size_x = float(max_pt[0] - min_pt[0])
+            size_y = float(max_pt[1] - min_pt[1])
+            size_z = float(max_pt[2] - min_pt[2])
             self.dims_label.SetLabel(
-                f"Size: {size[0]:.1f} x {size[1]:.1f} x {size[2]:.1f} mm"
+                f"Size: {size_x:.1f} x {size_y:.1f} x {size_z:.1f} mm"
             )
         else:
             self.dims_label.SetLabel("Size: - x - x - mm")

@@ -92,8 +92,8 @@ def register_loaders(kernel):
             elements.elem_branch.add_node(node)
 
             channel(_(f"Created PointCloud3D element with {len(node)} points"))
-            if node.bounds is not None:
-                min_pt, max_pt = node.bounds
+            if node.bounds_3d is not None:
+                min_pt, max_pt = node.bounds_3d
                 channel(
                     _(
                         f"Size: {max_pt[0] - min_pt[0]:.1f} x {max_pt[1] - min_pt[1]:.1f} x {max_pt[2] - min_pt[2]:.1f} mm"
