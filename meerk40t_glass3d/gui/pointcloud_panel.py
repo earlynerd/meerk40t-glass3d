@@ -166,14 +166,55 @@ class PointCloudPropertyPanel(wx.Panel):
             )
             return
 
+        # Get current values as defaults
+        current_strategy = getattr(self.node, "generation_strategy", "surface")
+        current_spacing = getattr(self.node, "point_spacing_mm", 0.1)
+
         # Create dialog for regeneration options
-        dlg = RegenerateDialog(self, source_file=source)
+        dlg = RegenerateDialog(
+            self,
+            source_file=source,
+            current_strategy=current_strategy,
+            current_spacing=current_spacing,
+        )
         if dlg.ShowModal() == wx.ID_OK:
             strategy = dlg.get_strategy()
             spacing = dlg.get_spacing()
 
-            # Regenerate via console command
-            self.context(f'glass3d load "{source}" -s {strategy} -p {spacing}')
+            # Regenerate points in place
+            try:
+                from meerk40t_glass3d.mesh.loader import load_mesh
+                from meerk40t_glass3d.mesh.pointcloud import generate_points
+
+                # Load mesh
+                mesh = load_mesh(source)
+
+                # Generate new points
+                points = generate_points(mesh, strategy=strategy, spacing=spacing)
+
+                # Update the existing node
+                self.node.point_data = points
+                self.node.generation_strategy = strategy
+                self.node.point_spacing_mm = spacing
+                self.node.revalidate_points()
+                self.node.sort_bottom_up()
+                self.node.updated()
+
+                # Refresh display
+                self.load_values()
+
+                wx.MessageBox(
+                    f"Regenerated {len(points):,} points using '{strategy}' strategy.",
+                    "Regeneration Complete",
+                    wx.OK | wx.ICON_INFORMATION,
+                )
+
+            except Exception as e:
+                wx.MessageBox(
+                    f"Regeneration failed: {e}",
+                    "Regeneration Error",
+                    wx.OK | wx.ICON_ERROR,
+                )
 
         dlg.Destroy()
 
@@ -251,7 +292,9 @@ class PointCloudPropertyPanel(wx.Panel):
 class RegenerateDialog(wx.Dialog):
     """Dialog for regenerating point cloud with new parameters."""
 
-    def __init__(self, parent, source_file=None):
+    STRATEGIES = ["surface", "solid", "contour", "layers"]
+
+    def __init__(self, parent, source_file=None, current_strategy="surface", current_spacing=0.1):
         wx.Dialog.__init__(
             self, parent, title="Regenerate Point Cloud", size=(300, 200)
         )
@@ -264,10 +307,12 @@ class RegenerateDialog(wx.Dialog):
         strat_sizer.Add(
             wx.StaticText(self, label="Strategy:"), 0, wx.ALIGN_CENTER_VERTICAL
         )
-        self.strategy_choice = wx.Choice(
-            self, choices=["surface", "solid", "contour", "layers"]
-        )
-        self.strategy_choice.SetSelection(0)
+        self.strategy_choice = wx.Choice(self, choices=self.STRATEGIES)
+        # Set current strategy as default
+        if current_strategy in self.STRATEGIES:
+            self.strategy_choice.SetSelection(self.STRATEGIES.index(current_strategy))
+        else:
+            self.strategy_choice.SetSelection(0)
         strat_sizer.Add(self.strategy_choice, 1, wx.LEFT, 5)
         sizer.Add(strat_sizer, 0, wx.ALL | wx.EXPAND, 10)
 
@@ -277,7 +322,7 @@ class RegenerateDialog(wx.Dialog):
             wx.StaticText(self, label="Spacing (mm):"), 0, wx.ALIGN_CENTER_VERTICAL
         )
         self.spacing_ctrl = wx.SpinCtrlDouble(
-            self, min=0.01, max=10.0, initial=0.1, inc=0.05
+            self, min=0.01, max=10.0, initial=current_spacing, inc=0.05
         )
         self.spacing_ctrl.SetDigits(3)
         spacing_sizer.Add(self.spacing_ctrl, 1, wx.LEFT, 5)

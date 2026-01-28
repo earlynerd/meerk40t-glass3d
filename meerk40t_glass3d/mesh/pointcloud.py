@@ -94,13 +94,16 @@ def generate_contour_points(mesh, spacing, layer_spacing=None, **kwargs):
     for z in z_levels:
         try:
             # Get cross-section at this Z level
-            slice_2d = mesh.section(plane_origin=[0, 0, z], plane_normal=[0, 0, 1])
+            slice_3d = mesh.section(plane_origin=[0, 0, z], plane_normal=[0, 0, 1])
 
-            if slice_2d is None:
+            if slice_3d is None:
                 continue
 
-            # Get the path in 2D
-            path_2d, transform = slice_2d.to_planar()
+            # Get the path in 2D and the transform to convert back to 3D
+            path_2d, transform = slice_3d.to_planar()
+
+            # Compute inverse transform to convert 2D points back to 3D
+            transform_inv = np.linalg.inv(transform)
 
             # Sample points along the path
             for entity in path_2d.entities:
@@ -119,7 +122,11 @@ def generate_contour_points(mesh, spacing, layer_spacing=None, **kwargs):
                     # Interpolate points
                     for t in np.linspace(0, 1, num_pts, endpoint=False):
                         pt_2d = start + t * (end - start)
-                        all_points.append([pt_2d[0], pt_2d[1], z])
+                        # Convert 2D point back to 3D using inverse transform
+                        # Create homogeneous 2D point (x, y, 0, 1)
+                        pt_2d_homo = np.array([pt_2d[0], pt_2d[1], 0, 1])
+                        pt_3d_homo = transform_inv @ pt_2d_homo
+                        all_points.append([pt_3d_homo[0], pt_3d_homo[1], pt_3d_homo[2]])
 
         except Exception:
             # Skip slices that fail
@@ -152,13 +159,16 @@ def generate_layer_points(mesh, spacing, layer_spacing=None, **kwargs):
     for z in z_levels:
         try:
             # Get cross-section at this Z level
-            slice_2d = mesh.section(plane_origin=[0, 0, z], plane_normal=[0, 0, 1])
+            slice_3d = mesh.section(plane_origin=[0, 0, z], plane_normal=[0, 0, 1])
 
-            if slice_2d is None:
+            if slice_3d is None:
                 continue
 
-            # Get the path in 2D
-            path_2d, transform = slice_2d.to_planar()
+            # Get the path in 2D and the transform to convert back to 3D
+            path_2d, transform = slice_3d.to_planar()
+
+            # Compute inverse transform to convert 2D points back to 3D
+            transform_inv = np.linalg.inv(transform)
 
             # Get bounding box of the slice
             if len(path_2d.vertices) == 0:
@@ -175,7 +185,10 @@ def generate_layer_points(mesh, spacing, layer_spacing=None, **kwargs):
                 for y in y_pts:
                     # Check if point is inside the slice polygon
                     if path_2d.contains_points([[x, y]])[0]:
-                        all_points.append([x, y, z])
+                        # Convert 2D point back to 3D using inverse transform
+                        pt_2d_homo = np.array([x, y, 0, 1])
+                        pt_3d_homo = transform_inv @ pt_2d_homo
+                        all_points.append([pt_3d_homo[0], pt_3d_homo[1], pt_3d_homo[2]])
 
         except Exception:
             # Skip slices that fail

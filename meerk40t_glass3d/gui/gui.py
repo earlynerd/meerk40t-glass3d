@@ -48,6 +48,11 @@ def register_menu_items(kernel):
     """Register menu items for Glass3D operations."""
     try:
         import wx
+        from meerk40t.gui.icons import (
+            icons8_opened_folder,
+            icons8_info,
+            icons8_laser_beam,
+        )
 
         _ = kernel.translation
 
@@ -87,7 +92,7 @@ def register_menu_items(kernel):
             "button/file/Import3DModel",
             {
                 "label": _("Import 3D Model..."),
-                "icon": "icon-folder-open",
+                "icon": icons8_opened_folder,
                 "tip": _("Import STL, OBJ, PLY, or 3MF file for subsurface engraving"),
                 "action": lambda e: kernel("glass3d_load_dialog\n"),
                 "priority": 15,  # After other import options
@@ -99,7 +104,7 @@ def register_menu_items(kernel):
             "button/laser/SSLEOperation",
             {
                 "label": _("Add SSLE Operation"),
-                "icon": "icon-effect",
+                "icon": icons8_laser_beam,
                 "tip": _("Add Subsurface Laser Engraving operation"),
                 "action": lambda e: kernel("ssle\n"),
                 "priority": 90,  # Near end of laser menu
@@ -111,7 +116,7 @@ def register_menu_items(kernel):
             "button/tools/Glass3D_Load",
             {
                 "label": _("Glass3D: Import 3D Model..."),
-                "icon": "icon-folder-open",
+                "icon": icons8_opened_folder,
                 "tip": _("Import 3D model for subsurface engraving"),
                 "action": lambda e: kernel("glass3d_load_dialog\n"),
                 "priority": 200,
@@ -122,7 +127,7 @@ def register_menu_items(kernel):
             "button/tools/Glass3D_SSLE",
             {
                 "label": _("Glass3D: Create SSLE Operation"),
-                "icon": "icon-effect",
+                "icon": icons8_laser_beam,
                 "tip": _("Create subsurface laser engraving operation"),
                 "action": lambda e: kernel("ssle\n"),
                 "priority": 201,
@@ -133,7 +138,7 @@ def register_menu_items(kernel):
             "button/tools/Glass3D_Info",
             {
                 "label": _("Glass3D: Show Model Info"),
-                "icon": "icon-info",
+                "icon": icons8_info,
                 "tip": _("Show information about loaded 3D models"),
                 "action": lambda e: kernel("glass3d info\n"),
                 "priority": 202,
