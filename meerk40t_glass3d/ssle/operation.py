@@ -306,3 +306,50 @@ def register_operation_types(kernel):
         "format/op ssle",
         "{enabled}{danger}{element_type} {power_pct}% @{dwell}ms {frequency}kHz {color}",
     )
+
+    # Add op ssle to operation type tuples for menu visibility
+    import meerk40t.core.elements.element_types as et
+
+    op_type = "op ssle"
+
+    # Add to non_structural_nodes (for delete operations, etc.)
+    if op_type not in et.non_structural_nodes:
+        et.non_structural_nodes = et.non_structural_nodes + (op_type,)
+
+    # Add to op_parent_nodes (operations that can have child references)
+    if op_type not in et.op_parent_nodes:
+        et.op_parent_nodes = et.op_parent_nodes + (op_type,)
+
+    # Add to op_nodes (all operation types)
+    if op_type not in et.op_nodes:
+        et.op_nodes = et.op_nodes + (op_type,)
+
+    # Register console command to create SSLE operation
+    _ = kernel.translation
+
+    @kernel.console_command(
+        "ssle",
+        help=_("Create SSLE operation"),
+        input_type=(None, "elements"),
+        output_type="op ssle",
+    )
+    def create_ssle_operation(command, channel, _, data=None, **kwgs):
+        """Create an SSLE operation and optionally add elements to it."""
+        elements = kernel.root.elements
+
+        # Create the SSLE operation node
+        op = SSLEOperationNode()
+
+        # Add to operations branch
+        elements.op_branch.add_node(op)
+
+        channel(_("Created SSLE operation"))
+
+        # If elements were passed, add them as references
+        if data is not None:
+            for node in data:
+                if node.type == "elem pointcloud3d":
+                    op.add_reference(node)
+                    channel(_(f"Added {node} to SSLE operation"))
+
+        return "op ssle", [op]

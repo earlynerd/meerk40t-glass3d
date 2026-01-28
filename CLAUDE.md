@@ -12,10 +12,17 @@ This project consists of two repositories:
 - **Phase 1-6**: Z-axis support, plugin structure, PointCloud3D element, SSLE operation, file loaders, GUI panels
 - **Phase 7**: Scene rendering - points now visible with Z-depth coloring (blue=deep, red=surface)
 - Point clouds can be loaded, displayed, selected, and repositioned via drag
+- **Phase 8**: Driver integration - SSLECut commands now processed by balormk driver
+  - Added `_execute_ssle_cut()` method to `BalorDriver` class
+  - Handles all SSLECut generator commands: `ssle_z_move`, `ssle_dwell`, `ssle_thermal_pause`, `ssle_layer_start/end`
+  - Uses existing Z-axis methods (`z_move_absolute`) for layer positioning
+  - Refraction correction applied automatically
+  - Thermal pause support for heat management
 
-### Remaining
-- **Phase 8**: Driver integration - SSLECut commands need to be processed by balormk driver
-- **Phase 9**: End-to-end testing with real hardware
+### In Progress
+- **Phase 9**: End-to-end testing
+  - Mock driver testing: COMPLETE (11/11 tests passing)
+  - Real hardware testing: PENDING (requires physical access to laser)
 
 ## Key Learnings & Gotchas
 
@@ -137,16 +144,70 @@ glass3d info
 glass3d debug
 ```
 
+## Phase 9 Testing Results
+
+### Mock Driver Tests (All Passing)
+
+Test files in `tests/`:
+- `test_phase9_integration.py` - 6 tests
+- `test_mock_driver_execution.py` - 2 tests
+- `test_z_axis_commands.py` - 3 tests
+
+**Total: 11/11 tests passing**
+
+Key verifications:
+- SSLECut command generation with correct layer ordering
+- Refraction correction (n=1.5: 5mm target -> 7.5mm corrected)
+- Operation -> cutobject pipeline
+- Driver command flow simulation
+- Z-axis command sequence (SetAxisMotionParam, MoveAxisTo)
+- Z-axis bounds clamping
+- Abort handling during execution
+
+### Remaining Hardware Tests
+
+When you have access to the laser:
+1. **Single layer test** - Fixed Z, verify laser fires at correct XY positions
+2. **Multi-layer test** - Verify Z movement between layers
+3. **Refraction verification** - Check focus depth matches material
+4. **Thermal pause timing** - Ensure pauses prevent overheating
+
 ## Next Steps
 
-1. **Phase 8: Driver Integration**
-   - Implement `execute_ssle_cut()` in balormk driver
-   - Handle SSLECut commands: `ssle_z_move`, `ssle_dwell`, `ssle_thermal_pause`
-   - Connect Z-axis movement with point dwelling
+1. **Hardware Testing** (when available)
+   - Run single-layer engraving test
+   - Verify Z-axis moves to correct depths
+   - Test full 3D point cloud engraving
 
-2. **Testing**
-   - Test with mock driver first
-   - Then real hardware single-layer test
-   - Multi-layer with Z movement
+2. **Future Enhancements**
+   - Point ordering optimization (minimize travel distance)
+   - Progress reporting during SSLE execution
+   - Power/frequency per-layer settings
+   - Support for intensity-based dwell time variation
+
+## Driver Integration Details (Phase 8)
+
+The SSLECut handler was added to `meerk40t/balormk/driver.py`:
+
+```python
+# Import (with fallback if plugin not installed)
+try:
+    from meerk40t_glass3d.ssle.cutobjects import SSLECut
+    SSLE_AVAILABLE = True
+except ImportError:
+    SSLECut = None
+    SSLE_AVAILABLE = False
+
+# In plot_start() method, added:
+elif SSLE_AVAILABLE and isinstance(q, SSLECut):
+    self._execute_ssle_cut(q, con)
+
+# New method _execute_ssle_cut() handles:
+# - ssle_layer_start: Log layer info
+# - ssle_z_move: Call z_move_absolute(corrected_z)
+# - ssle_dwell: Convert mm to galvo units, goto, fire laser
+# - ssle_thermal_pause: Insert delay for heat management
+# - ssle_layer_end: Log completion
+```
 
 See `meerk40t-integration-plan.md` for detailed task breakdown.

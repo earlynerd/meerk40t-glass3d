@@ -51,7 +51,7 @@ def register_menu_items(kernel):
 
         _ = kernel.translation
 
-        # Add Glass3D submenu to Tools menu
+        # Console command for file dialog (called by menu)
         @kernel.console_command(
             "glass3d_load_dialog",
             help=_("Open file dialog to load 3D model"),
@@ -59,7 +59,6 @@ def register_menu_items(kernel):
         )
         def glass3d_load_dialog(command, channel, _, **kwgs):
             """Open a file dialog to load a 3D model."""
-            # This will be called from menu
             gui = kernel.lookup("wxgui")
             if gui is None:
                 channel(_("GUI not available"))
@@ -81,6 +80,95 @@ def register_menu_items(kernel):
 
                 filepath = dialog.GetPath()
                 kernel(f'glass3d load "{filepath}"')
+
+        # Register menu items
+        # File menu - Import 3D Model
+        kernel.register(
+            "button/file/Import3DModel",
+            {
+                "label": _("Import 3D Model..."),
+                "icon": "icon-folder-open",
+                "tip": _("Import STL, OBJ, PLY, or 3MF file for subsurface engraving"),
+                "action": lambda e: kernel("glass3d_load_dialog\n"),
+                "priority": 15,  # After other import options
+            },
+        )
+
+        # Laser menu - Add SSLE Operation
+        kernel.register(
+            "button/laser/SSLEOperation",
+            {
+                "label": _("Add SSLE Operation"),
+                "icon": "icon-effect",
+                "tip": _("Add Subsurface Laser Engraving operation"),
+                "action": lambda e: kernel("ssle\n"),
+                "priority": 90,  # Near end of laser menu
+            },
+        )
+
+        # Tools menu - Glass3D submenu
+        kernel.register(
+            "button/tools/Glass3D_Load",
+            {
+                "label": _("Glass3D: Import 3D Model..."),
+                "icon": "icon-folder-open",
+                "tip": _("Import 3D model for subsurface engraving"),
+                "action": lambda e: kernel("glass3d_load_dialog\n"),
+                "priority": 200,
+            },
+        )
+
+        kernel.register(
+            "button/tools/Glass3D_SSLE",
+            {
+                "label": _("Glass3D: Create SSLE Operation"),
+                "icon": "icon-effect",
+                "tip": _("Create subsurface laser engraving operation"),
+                "action": lambda e: kernel("ssle\n"),
+                "priority": 201,
+            },
+        )
+
+        kernel.register(
+            "button/tools/Glass3D_Info",
+            {
+                "label": _("Glass3D: Show Model Info"),
+                "icon": "icon-info",
+                "tip": _("Show information about loaded 3D models"),
+                "action": lambda e: kernel("glass3d info\n"),
+                "priority": 202,
+            },
+        )
+
+        # Context menu for PointCloud3D elements
+        @kernel.console_command(
+            "pointcloud_to_ssle",
+            help=_("Create SSLE operation from selected point cloud"),
+            hidden=True,
+        )
+        def pointcloud_to_ssle(command, channel, _, **kwgs):
+            """Create SSLE operation from selected point cloud."""
+            elements = kernel.root.elements
+
+            # Find selected pointcloud3d elements
+            selected = [n for n in elements.elems(emphasized=True)
+                       if n.type == "elem pointcloud3d"]
+
+            if not selected:
+                channel(_("No point cloud selected"))
+                return
+
+            # Create SSLE operation
+            from meerk40t_glass3d.ssle.operation import SSLEOperationNode
+            op = SSLEOperationNode()
+            elements.op_branch.add_node(op)
+
+            # Add selected pointclouds as references
+            for pc in selected:
+                op.add_reference(pc)
+                channel(_(f"Added {pc} to SSLE operation"))
+
+            channel(_("Created SSLE operation with selected point clouds"))
 
     except ImportError:
         pass
